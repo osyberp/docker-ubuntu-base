@@ -1,5 +1,8 @@
 #!/usr/bin/env sh
 
+# Exit inmediately if a command fails
+set -e
+
 # With a little help from my friends
 . /usr/share/vx-docker-internal/ubuntu-base/library.sh
 
@@ -9,6 +12,7 @@ PSQL_UPSTREAM_KEY="https://www.postgresql.org/media/keys/ACCC4CF8.asc"
 TRUSTY_REPO="deb http://archive.ubuntu.com/ubuntu/ trusty main universe multiverse"
 TRUSTY_UPDATES_REPO="deb http://archive.ubuntu.com/ubuntu/ trusty-updates main universe multiverse"
 TRUSTY_SECURITY_REPO="deb http://archive.ubuntu.com/ubuntu/ trusty-security main universe multiverse"
+DPKG_PRE_DEPENDS="wget ca-certificates"
 DPKG_DEPENDS="bzr \
               git \
               mercurial \
@@ -20,7 +24,6 @@ DPKG_DEPENDS="bzr \
               locate \
               lsof \
               multitail \
-              supervisor \
               tmux \
               unzip \
               vim \
@@ -43,7 +46,8 @@ PIP_DEPENDS="pyopenssl \
              PyGithub \
              merge-requirements \
              pip-tools \
-             click"
+             click \
+             supervisor"
 PIP_DPKG_BUILD_DEPENDS="libpq-dev \
                         python-dev \
                         libffi-dev \
@@ -71,11 +75,15 @@ PIP_DPKG_BUILD_DEPENDS="libpq-dev \
 
 # This will setup our default locale.
 # Setting these three variables will ensure we have a proper locale environment
-locale-gen ${LANG}
 update-locale LANG=${LANG} LANGUAGE=${LANG} LC_ALL=${LANG}
 
 # Configure apt sources so we can use multiverse section from repo
 conf_aptsources "${TRUSTY_REPO}" "${TRUSTY_UPDATES_REPO}" "${TRUSTY_SECURITY_REPO}"
+
+# Upgrade system and install some pre-dependencies
+apt-get update
+apt-get upgrade
+apt-get install ${DPKG_PRE_DEPENDS}
 
 # This will put postgres's upstream repo for us to install a newer
 # postgres because our image is so old
@@ -89,6 +97,8 @@ apt-get install ${DPKG_DEPENDS} ${PIP_DPKG_BUILD_DEPENDS}
 # Get pip from upstream because is lighter
 py_download_execute https://bootstrap.pypa.io/get-pip.py
 
+# Let's keep this version ultil the bugs get fixed
+pip install --upgrade pip==8.1.1
 # Install python dependencies
 pip install ${PIP_OPTS} ${PIP_DEPENDS}
 
